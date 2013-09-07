@@ -1,1 +1,4 @@
-*.tsk
+bin
+obj
+lib
+.posh

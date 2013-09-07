@@ -1,0 +1,13 @@
+register({
+  id: 'uber_test',
+  type: 'header_only',
+  language: 'c++'
+});
+
+register({
+  id: 'uber_test_example',
+  target: 'example',
+  type: 'application',
+  language: 'c++',
+  libs: ['pthread']
+});
