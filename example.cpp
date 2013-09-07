@@ -10,6 +10,10 @@ describe(suite)
   before([]() {
     std::cout << "before" << std::endl;
   });
+  before([](const bool_callback& cb) {
+    std::cout << "beforeAsync" << std::endl;
+    cb(true);
+  });
   beforeEach([=]() {
     std::cout << "beforeEach" << std::endl;
     static std::size_t count = 0;
@@ -45,7 +49,9 @@ describe(suite)
   done(subsuite)
 
   describe(subsuite3)
-
+    it("is yet another test", [] {
+      std::cout << "done" << std::endl;
+    });
   done(subsuite3)
 done(suite)
 
