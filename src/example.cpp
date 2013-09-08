@@ -53,7 +53,7 @@ describe(suite)
       });
       it("should throw an uncaught exception", [] {
         std::cerr << "This isn't good";
-        assert(1 != 2, "1 does not equal 2");
+        assert(1 == 2, "1 does not equal 2");
       });
       it("should wait for 1/10 of a second", [] {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
