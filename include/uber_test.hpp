@@ -3,13 +3,11 @@
 #include <vector>
 #include <memory>
 #include <future>
-
+#include <stdexcept>
 
 namespace ut {
 
 struct Suite;
-
-Suite* parent = nullptr;
 
 typedef std::function<void()> callback;
 typedef std::function<void(const callback&)> registration;
@@ -33,6 +31,37 @@ struct CallbackAccumulator {
   std::vector<async_callback>& _async_callbacks;
 };
 
+struct Test {
+  const std::string name;
+  const callback cb;
+  mutable std::string message;
+  mutable bool failed = false;
+
+  void run() const {
+    try {
+      cb();
+    }
+    catch(std::exception& e) {
+      failed = true;
+      message = e.what();
+    }
+  }
+
+  Test(const std::string& name_, const callback& cb_)
+    : name(name_), cb(cb_) {}
+};
+
+struct Suite;
+
+struct Reporter {
+  virtual void testStarted(const Test& t) {}
+  virtual void testFailed(const Test& t) {}
+  virtual void testSucceeded(const Test& t) {}
+  virtual void suiteStarted(const Suite& s) {}
+  virtual void suiteFailed(const Suite& s) {}
+  virtual void suiteSucceeded(const Suite& s) {}
+};
+
 struct Suite {
   std::vector<callback> _before;
   std::vector<async_callback> _beforeAsync;
@@ -43,17 +72,18 @@ struct Suite {
   std::vector<callback> _afterEach;
   std::vector<async_callback> _afterEachAsync;
 
-  std::vector<std::pair<std::string, callback>> _cases;
-  std::vector<std::shared_ptr<Suite>> _suites;
+  std::vector<Test> tests;
+  std::vector<std::shared_ptr<Suite>> suites;
 
-  Suite* _parent;
-  std::string _name;
+  Suite* parent;
+  std::string name;
+  mutable bool failed = false;
 
   Suite() {}
 
   template <typename Callback>
-  Suite(Suite* parent, const char* name, const Callback& describe)
-    : _parent(parent), _name(name)
+  Suite(Suite* parent_, const char* name_, const Callback& describe)
+    : parent(parent_), name(name_)
   {
     CallbackAccumulator before(_before, _beforeAsync);
     CallbackAccumulator beforeEach(_beforeEach, _beforeEachAsync);
@@ -61,13 +91,13 @@ struct Suite {
     CallbackAccumulator afterEach(_afterEach, _afterEachAsync);
 
     auto it = [&](const char* tag, const callback& cb) {
-      _cases.emplace_back(std::make_pair(tag, cb));
+      tests.emplace_back(tag, cb);
     };
 
     describe(this, before, beforeEach, after, afterEach, it);
 
-    if (_parent)
-      _parent->_suites.emplace_back(std::make_shared<Suite>(*this));
+    if (parent)
+      parent->suites.emplace_back(std::make_shared<Suite>(*this));
   }
 
   void call(const std::vector<callback>& cbs) const {
@@ -90,13 +120,32 @@ struct Suite {
   }
 
   void execute() const {
+    Reporter defaultReporter;
+    execute(defaultReporter);
+  }
+
+  template <typename Reporter = Reporter>
+  void execute(Reporter& reporter) const {
+    failed = false;
+    reporter.suiteStarted(*this);
+
     call(_before);
     call(_beforeAsync);
 
-    for (const auto& c : _cases) {
+    for (const auto& test : tests) {
       call(_beforeEach);
       call(_beforeEachAsync);
-      c.second();
+
+      reporter.testStarted(test);
+      test.run();
+      if (test.failed) {
+        reporter.testFailed(test);
+        failed = true;
+      }
+      else {
+        reporter.testSucceeded(test);
+      }
+
       call(_afterEach);
       call(_afterAsync);
     }
@@ -104,10 +153,21 @@ struct Suite {
     call(_after);
     call(_afterAsync);
 
-    for (const auto& s : _suites)
-      s->execute();
+    for (const auto& s : suites) {
+      s->execute(reporter);
+      if (s->failed)
+        failed = true;
+    }
+
+    if (failed)
+      reporter.suiteFailed(*this);
+    else
+      reporter.suiteSucceeded(*this);
   }
 };
+
+Suite root;
+Suite* parent = &root;
 
 }
 
@@ -117,4 +177,3 @@ Suite tag = {parent, #tag, [] \
 
 #define done(tag) \
 }}; \
-

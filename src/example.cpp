@@ -1,21 +1,21 @@
 #include <uber_test.hpp>
+#include <ostream_reporter.hpp>
 
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 using namespace ut;
 
 describe(suite)
   auto val = std::make_shared<std::string>();
   before([]() {
-    std::cout << "before" << std::endl;
+
   });
   before([](const bool_callback& cb) {
-    std::cout << "beforeAsync" << std::endl;
     cb(true);
   });
   beforeEach([=]() {
-    std::cout << "beforeEach" << std::endl;
     static std::size_t count = 0;
     ++count;
     std::stringstream str;
@@ -23,26 +23,30 @@ describe(suite)
     *val = str.str();
   });
   afterEach([]() {
-    std::cout << "afterEach" << std::endl;
+
   });
   after([]() {
-    std::cout << "after" << std::endl;
+
   });
   it("should do nothing", [=] {
-    std::cout << *val << std::endl;
+    std::cout << *val;
   });
   it("should also do nothing", [=] {
-    std::cout << *val << std::endl;
+    std::cout << *val;
   });
 
   describe(subsuite)
     it("should not execute?", [] {
-      std::cout << "damn" << std::endl;
+      std::cout << "damn";
     });
 
     describe(subsuite2)
       it("should play out", [] {
-        std::cout << "hi there" << std::endl;
+        std::cout << "hi there";
+      });
+      it("should throw an uncaught exception", [] {
+        std::cerr << "This isn't good";
+        throw std::runtime_error("Exceptional failure");
       });
     done(subsuite2)
 
@@ -50,12 +54,13 @@ describe(suite)
 
   describe(subsuite3)
     it("is yet another test", [] {
-      std::cout << "done" << std::endl;
+      std::cout << "done";
     });
   done(subsuite3)
 done(suite)
 
 
 int main(int argc, char* argv[]) {
-  suite.execute();
+  OstreamReporter rep(std::cout);
+  suite.execute(rep);
 }
