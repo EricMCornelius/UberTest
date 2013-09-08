@@ -1,7 +1,8 @@
 register({
   id: 'uber_test',
-  type: 'header_only',
-  language: 'c++'
+  type: 'shared_lib',
+  language: 'c++',
+  sources: ['src/globals.cpp']
 });
 
 register({
@@ -9,5 +10,7 @@ register({
   target: 'example',
   type: 'application',
   language: 'c++',
-  libs: ['pthread']
+  libs: ['pthread'],
+  sources: ['src/example.cpp', 'src/example2.cpp'],
+  deps: ['uber_test']
 });

@@ -9,6 +9,8 @@
 
 #include <timer.hpp>
 
+#include <iostream>
+
 namespace ut {
 
 struct Suite;
@@ -18,6 +20,7 @@ typedef std::function<void(const callback&)> registration;
 typedef std::function<void(bool)> bool_callback;
 typedef std::function<void(const bool_callback&)> async_callback;
 typedef std::function<void(const char*, const callback&)> tagged_registration;
+typedef std::function<Suite*()> parent_retriever;
 
 struct CallbackAccumulator {
   CallbackAccumulator(std::vector<callback>& callbacks, std::vector<async_callback>& async_callbacks)
@@ -86,11 +89,14 @@ struct Suite {
   std::vector<Test> tests;
   std::vector<std::shared_ptr<Suite>> suites;
 
-  Suite* parent;
+  Suite* parent = nullptr;
   std::string name;
   mutable bool failed = false;
 
   Suite() {}
+
+  Suite(const char* name_)
+    : name(name_) {}
 
   template <typename Callback>
   Suite(Suite* parent_, const char* name_, const Callback& describe)
@@ -105,7 +111,11 @@ struct Suite {
       tests.emplace_back(tag, cb);
     };
 
-    describe(this, before, beforeEach, after, afterEach, it);
+    parent_retriever retriever = [&]() {
+      return this;
+    };
+
+    describe(retriever, before, beforeEach, after, afterEach, it);
 
     if (parent)
       parent->suites.emplace_back(std::make_shared<Suite>(*this));
@@ -177,14 +187,13 @@ struct Suite {
   }
 };
 
-Suite root;
-Suite* parent = &root;
+Suite* parent_suite();
 
 }
 
 #define describe(tag) \
-Suite tag = {parent, #tag, [] \
-  (Suite* parent, CallbackAccumulator& before, CallbackAccumulator& beforeEach, CallbackAccumulator& after, CallbackAccumulator& afterEach, tagged_registration it) { \
+Suite tag = {parent_suite(), #tag, [] \
+  (parent_retriever& parent_suite, CallbackAccumulator& before, CallbackAccumulator& beforeEach, CallbackAccumulator& after, CallbackAccumulator& afterEach, tagged_registration it) { \
 
 #define done(tag) \
 }}; \

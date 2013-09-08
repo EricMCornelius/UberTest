@@ -12,7 +12,7 @@ using namespace ut;
 
 namespace {
 
-describe(example1)
+describe(example2)
   auto val = std::make_shared<std::string>();
   before([]() {
 
@@ -44,12 +44,12 @@ describe(example1)
     assert_eq(*val, "3");
   });
 
-  describe(subsuite)
+  describe(tests)
     it("should not execute?", [] {
       std::cout << "damn";
     });
 
-    describe(subsuite2)
+    describe(tests2)
       it("should play out", [] {
         std::cout << "hi there";
       });
@@ -61,20 +61,9 @@ describe(example1)
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         assert(true, "Should not fail");
       });
-    done(subsuite2)
+    done(tests2)
 
-  done(subsuite)
+  done(tests)
+done(example2)
 
-  describe(subsuite3)
-    it("is yet another test", [] {
-      std::cout << "done";
-    });
-  done(subsuite3)
-done(example1)
-
-}
-
-int main(int argc, char* argv[]) {
-  OstreamReporter rep(std::cout);
-  parent_suite()->execute(rep);
 }

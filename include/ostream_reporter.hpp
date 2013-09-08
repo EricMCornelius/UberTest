@@ -16,8 +16,7 @@ struct OstreamReporter {
   OstreamReporter(std::ostream& out_)
     : out(out_)
   {
-    if (isTerminal())
-      startColor("white");
+
   }
 
   std::ostream& out;
@@ -43,7 +42,7 @@ struct OstreamReporter {
   };
 
   std::string pad() {
-    return std::string(indentation, ' ');
+    return "\n" + std::string(indentation, ' ');
   }
 
   void increaseIndentation() {
@@ -78,18 +77,18 @@ struct OstreamReporter {
     return (isatty(fileno(stdout)));
   }
 
-  void print() {
+  void print_impl() {
     std::cout << std::endl;
   }
 
   template <typename Head, typename... Args>
-  void print(const Head& msg, const Args&... args) {
+  void print_impl(const Head& msg, const Args&... args) {
     out << msg << " ";
-    print(args...);
+    print_impl(args...);
   }
 
   template <typename... Args>
-  void print(const Color& color, const Args&... args) {
+  void print_impl(const Color& color, const Args&... args) {
     if (isTerminal()) {
       endColor();
       switch(color) {
@@ -119,7 +118,16 @@ struct OstreamReporter {
           break;
       }
     }
-    print(args...);
+    print_impl(args...);
+  }
+
+  template <typename... Args>
+  void print(const Args&... args) {
+    if (isTerminal())
+      startColor("white");
+    print_impl(args...);
+    if (isTerminal())
+      endColor();
   }
 
   // http://stackoverflow.com/questions/5419356/redirect-stdout-stderr-to-a-string
@@ -156,11 +164,11 @@ struct OstreamReporter {
     auto stderr = redirections.back()->contents();
     redirections.pop_back();
     bool us = (t.seconds < 0.001);
-    print(pad(), Color::Red, "Test failed: ", Color::Cyan, t.name,
-          Color::Yellow, "\n ", pad(), "execution time:", Color::White, (us) ? t.microseconds : t.seconds, (us) ? "(us)" : "(s)",
-          Color::Yellow, "\n ", pad(), "stdout:", Color::White, stdout,
-          Color::Yellow, "\n ", pad(), "stderr:", Color::White, stderr,
-          Color::Yellow, "\n ", pad(), "failure:", Color::White, t.message);
+    print(pad(), Color::Red, "Failure:",
+          Color::Yellow, pad(), "execution time:", Color::White, (us) ? t.microseconds : t.seconds, (us) ? "(us)" : "(s)",
+          Color::Yellow, pad(), "stdout:", Color::White, stdout,
+          Color::Yellow, pad(), "stderr:", Color::White, stderr,
+          Color::Yellow, pad(), "failure:", Color::White, t.message);
   }
 
   virtual void testSucceeded(const Test& t) {
@@ -169,10 +177,10 @@ struct OstreamReporter {
     auto stderr = redirections.back()->contents();
     redirections.pop_back();
     bool us = (t.seconds < 0.001);
-    print(pad(), Color::Green, "Test Succeeded:", Color::Cyan, t.name,
-          Color::Yellow, "\n ", pad(), "execution time:", Color::White, (us) ? t.microseconds : t.seconds, (us) ? "(us)" : "(s)",
-          Color::Yellow, "\n ", pad(), "stdout:", Color::White, stdout,
-          Color::Yellow, "\n ", pad(), "stderr:", Color::White, stderr);
+    print(pad(), Color::Green, "Success:",
+          Color::Yellow, pad(), "execution time:", Color::White, (us) ? t.microseconds : t.seconds, (us) ? "(us)" : "(s)",
+          Color::Yellow, pad(), "stdout:", Color::White, stdout,
+          Color::Yellow, pad(), "stderr:", Color::White, stderr);
   }
 
   virtual void suiteStarted(const Suite& s) {
