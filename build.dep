@@ -1,8 +1,7 @@
 register({
   id: 'uber_test',
-  type: 'shared_lib',
-  language: 'c++',
-  sources: ['src/globals.cpp']
+  type: 'header_only',
+  language: 'c++'
 });
 
 register({

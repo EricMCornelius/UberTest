@@ -76,5 +76,5 @@ done(example1)
 
 int main(int argc, char* argv[]) {
   OstreamReporter rep(std::cout);
-  parent_suite()->execute(rep);
+  Registry::get("root")->execute(rep);
 }

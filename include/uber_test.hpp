@@ -6,6 +6,7 @@
 #include <memory>
 #include <future>
 #include <stdexcept>
+#include <unordered_map>
 
 #include <timer.hpp>
 
@@ -20,7 +21,7 @@ typedef std::function<void(const callback&)> registration;
 typedef std::function<void(bool)> bool_callback;
 typedef std::function<void(const bool_callback&)> async_callback;
 typedef std::function<void(const char*, const callback&)> tagged_registration;
-typedef std::function<Suite*()> parent_retriever;
+typedef std::function<std::string()> parent_name_getter;
 
 struct CallbackAccumulator {
   CallbackAccumulator(std::vector<callback>& callbacks, std::vector<async_callback>& async_callbacks)
@@ -76,7 +77,9 @@ struct Reporter {
   virtual void suiteSucceeded(const Suite& s) {}
 };
 
-struct Suite {
+typedef std::function<void(parent_name_getter, CallbackAccumulator&, CallbackAccumulator&, CallbackAccumulator&, CallbackAccumulator&, tagged_registration)> suite_initializer;
+
+struct Suite : std::enable_shared_from_this<Suite> {
   std::vector<callback> _before;
   std::vector<async_callback> _beforeAsync;
   std::vector<callback> _beforeEach;
@@ -89,19 +92,29 @@ struct Suite {
   std::vector<Test> tests;
   std::vector<std::shared_ptr<Suite>> suites;
 
-  Suite* parent = nullptr;
+  std::shared_ptr<Suite> parent = nullptr;
   std::string name;
+  std::string path;
+  suite_initializer initializer = nullptr;
   mutable bool failed = false;
 
   Suite() {}
 
   Suite(const char* name_)
-    : name(name_) {}
+    : name(name_), path(name_) {}
 
-  template <typename Callback>
-  Suite(Suite* parent_, const char* name_, const Callback& describe)
-    : parent(parent_), name(name_)
+  Suite(const std::shared_ptr<Suite> parent_, const std::string& name_, const std::string& path_, const suite_initializer& initializer_)
+    : parent(parent_), name(name_), path(path_), initializer(initializer_)
   {
+
+  }
+
+  void initialize() {
+    parent->suites.push_back(shared_from_this());
+    initialize(initializer);
+  }
+
+  void initialize(const suite_initializer& initializer_) {
     CallbackAccumulator before(_before, _beforeAsync);
     CallbackAccumulator beforeEach(_beforeEach, _beforeEachAsync);
     CallbackAccumulator after(_after, _afterAsync);
@@ -111,14 +124,11 @@ struct Suite {
       tests.emplace_back(tag, cb);
     };
 
-    parent_retriever retriever = [&]() {
-      return this;
+    auto parent_getter = [&]() {
+      return path;
     };
 
-    describe(retriever, before, beforeEach, after, afterEach, it);
-
-    if (parent)
-      parent->suites.emplace_back(std::make_shared<Suite>(*this));
+    initializer_(parent_getter, before, beforeEach, after, afterEach, it);
   }
 
   void call(const std::vector<callback>& cbs) const {
@@ -187,13 +197,54 @@ struct Suite {
   }
 };
 
-Suite* parent_suite();
+struct Registry {
+  static std::unordered_map<std::string, std::shared_ptr<Suite>>& registered() {
+    static std::unordered_map<std::string, std::shared_ptr<Suite>> _impl;
+    return _impl;
+  };
+
+  static bool add(const std::string parent_name, const std::string name, const suite_initializer cb) {
+    if (parent_name == parent()) {
+      if(registered().find("root") == registered().end())
+        registered()["root"] = std::make_shared<Suite>("root");
+    }
+
+    std::string full = parent_name + "/" + name;
+    auto parent = registered()[parent_name];
+    auto current = registered().find(full);
+
+    if (current == registered().end()) {
+      auto var = std::make_shared<Suite>(parent, name, full, cb);
+      registered()[full] = var;
+      var->initialize();
+    }
+    else {
+      current->second->initialize(cb);
+    }
+    return true;
+  }
+
+  static std::shared_ptr<Suite> get(const std::string& name) {
+    auto current = registered().find(name);
+    if (current == registered().end())
+      return nullptr;
+    return current->second;
+  }
+
+  static std::string parent() {
+    return "root";
+  }
+};
+
+inline std::string parent() {
+  return Registry::parent();
+}
 
 }
 
 #define describe(tag) \
-Suite tag = {parent_suite(), #tag, [] \
-  (parent_retriever& parent_suite, CallbackAccumulator& before, CallbackAccumulator& beforeEach, CallbackAccumulator& after, CallbackAccumulator& afterEach, tagged_registration it) { \
+auto tag = Registry::add(parent(), #tag, \
+  [] (parent_name_getter parent, CallbackAccumulator& before, CallbackAccumulator& beforeEach, CallbackAccumulator& after, CallbackAccumulator& afterEach, tagged_registration it) { \
 
 #define done(tag) \
-}}; \
+}); \

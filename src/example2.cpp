@@ -12,7 +12,7 @@ using namespace ut;
 
 namespace {
 
-describe(example2)
+describe(example1)
   auto val = std::make_shared<std::string>();
   before([]() {
 
@@ -64,6 +64,6 @@ describe(example2)
     done(tests2)
 
   done(tests)
-done(example2)
+done(example1)
 
 }
