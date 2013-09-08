@@ -1,9 +1,12 @@
 #include <uber_test.hpp>
 #include <ostream_reporter.hpp>
+#include <assertions.hpp>
 
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
+#include <chrono>
 
 using namespace ut;
 
@@ -13,13 +16,15 @@ describe(suite)
 
   });
   before([](const bool_callback& cb) {
+    // demonstrate a pause in asynchronous before call
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     cb(true);
   });
   beforeEach([=]() {
     static std::size_t count = 0;
     ++count;
     std::stringstream str;
-    str << "test:" << count;
+    str << count;
     *val = str.str();
   });
   afterEach([]() {
@@ -28,11 +33,13 @@ describe(suite)
   after([]() {
 
   });
-  it("should do nothing", [=] {
+  it("should check value", [=] {
     std::cout << *val;
+    assert_eq(*val, "1");
   });
-  it("should also do nothing", [=] {
+  it("should also check value", [=] {
     std::cout << *val;
+    assert_eq(*val, "3");
   });
 
   describe(subsuite)
@@ -46,7 +53,11 @@ describe(suite)
       });
       it("should throw an uncaught exception", [] {
         std::cerr << "This isn't good";
-        throw std::runtime_error("Exceptional failure");
+        assert(1 != 2, "1 does not equal 2");
+      });
+      it("should wait for 1/10 of a second", [] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        assert(true, "Should not fail");
       });
     done(subsuite2)
 

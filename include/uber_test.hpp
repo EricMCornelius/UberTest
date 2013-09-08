@@ -1,9 +1,13 @@
+#pragma once
+
 #include <functional>
 #include <string>
 #include <vector>
 #include <memory>
 #include <future>
 #include <stdexcept>
+
+#include <timer.hpp>
 
 namespace ut {
 
@@ -36,8 +40,12 @@ struct Test {
   const callback cb;
   mutable std::string message;
   mutable bool failed = false;
+  mutable double seconds = 0;
+  mutable std::size_t microseconds = 0;
 
   void run() const {
+    timer t;
+    t.start();
     try {
       cb();
     }
@@ -45,6 +53,9 @@ struct Test {
       failed = true;
       message = e.what();
     }
+    t.stop();
+    seconds = t.seconds();
+    microseconds = t.count();
   }
 
   Test(const std::string& name_, const callback& cb_)

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <chrono>
 
@@ -80,8 +82,8 @@ struct OstreamReporter {
     std::cout << std::endl;
   }
 
-  template <typename... Args>
-  void print(const std::string& msg, const Args&... args) {
+  template <typename Head, typename... Args>
+  void print(const Head& msg, const Args&... args) {
     out << msg << " ";
     print(args...);
   }
@@ -153,9 +155,12 @@ struct OstreamReporter {
     redirections.pop_back();
     auto stderr = redirections.back()->contents();
     redirections.pop_back();
+    bool us = (t.seconds < 0.001);
     print(pad(), Color::Red, "Test failed: ", Color::Cyan, t.name,
+          Color::Yellow, "\n ", pad(), "execution time:", Color::White, (us) ? t.microseconds : t.seconds, (us) ? "(us)" : "(s)",
           Color::Yellow, "\n ", pad(), "stdout:", Color::White, stdout,
-          Color::Yellow, "\n ", pad(), "stderr:", Color::White, stderr);
+          Color::Yellow, "\n ", pad(), "stderr:", Color::White, stderr,
+          Color::Yellow, "\n ", pad(), "failure:", Color::White, t.message);
   }
 
   virtual void testSucceeded(const Test& t) {
@@ -163,7 +168,9 @@ struct OstreamReporter {
     redirections.pop_back();
     auto stderr = redirections.back()->contents();
     redirections.pop_back();
+    bool us = (t.seconds < 0.001);
     print(pad(), Color::Green, "Test Succeeded:", Color::Cyan, t.name,
+          Color::Yellow, "\n ", pad(), "execution time:", Color::White, (us) ? t.microseconds : t.seconds, (us) ? "(us)" : "(s)",
           Color::Yellow, "\n ", pad(), "stdout:", Color::White, stdout,
           Color::Yellow, "\n ", pad(), "stderr:", Color::White, stderr);
   }
