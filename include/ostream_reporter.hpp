@@ -190,12 +190,15 @@ struct OstreamReporter {
 
   virtual void suiteFailed(const Suite& s) {
     decreaseIndentation();
-    print(pad(), Color::Red, "Suite Failed:", Color::Cyan, s.name);
+    print(pad(), Color::Red, "Suite Failed:", Color::Cyan, s.name,
+          Color::Yellow, pad(), "failures:", Color::Red, s.failures,
+          Color::Yellow, pad(), "successes:", Color::Green, s.successes);
   }
 
   virtual void suiteSucceeded(const Suite& s) {
     decreaseIndentation();
-    print(pad(), Color::Green, "Suite Succeeded:", Color::Cyan, s.name);
+    print(pad(), Color::Green, "Suite Succeeded:", Color::Cyan, s.name,
+          Color::Yellow, pad(), "successes:", Color::Green, s.successes);
   }
 };
 

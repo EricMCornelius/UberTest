@@ -17,10 +17,10 @@ describe(example1)
   before([]() {
 
   });
-  before([](const bool_callback& cb) {
+  before([](const callback& cb) {
     // demonstrate a pause in asynchronous before call
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    cb(true);
+    cb();
   });
   beforeEach([=]() {
     static std::size_t count = 0;
@@ -42,6 +42,12 @@ describe(example1)
   it("should also check value", [=] {
     std::cout << *val;
     assert_eq(*val, "3");
+  });
+  it("should demonstrate asynchronous failure", [](const callback& cb) {
+    cb("Sample failure");
+  });
+  it("should demonstrate another async failure", [](const callback& cb) {
+    cb(1);
   });
 
   describe(subsuite)

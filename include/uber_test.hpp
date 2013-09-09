@@ -9,39 +9,88 @@
 #include <unordered_map>
 
 #include <timer.hpp>
-
-#include <iostream>
+#include <sstream>
 
 namespace ut {
 
 struct Suite;
 
-typedef std::function<void()> callback;
-typedef std::function<void(const callback&)> registration;
-typedef std::function<void(bool)> bool_callback;
-typedef std::function<void(const bool_callback&)> async_callback;
-typedef std::function<void(const char*, const callback&)> tagged_registration;
-typedef std::function<std::string()> parent_name_getter;
+typedef std::function<void()> void_callback;
+typedef std::function<void(const void_callback&)> registration;
 
-struct CallbackAccumulator {
-  CallbackAccumulator(std::vector<callback>& callbacks, std::vector<async_callback>& async_callbacks)
-    : _callbacks(callbacks), _async_callbacks(async_callbacks) {}
+struct callback {
+  callback(std::promise<std::string>& p)
+    : _p(p) {}
 
-  void operator()(const callback& cb) {
-    _callbacks.emplace_back(cb);
+  template <typename T>
+  void operator()(const T& obj) const {
+    std::stringstream str;
+    str << obj;
+    _p.set_value(str.str());
   }
 
-  void operator()(const async_callback& cb) {
-    _async_callbacks.emplace_back(cb);
+  void operator()(const std::string& msg) const {
+    _p.set_value(msg);
+  }
+  void operator()() const {
+    _p.set_value("");
   }
 
-  std::vector<callback>& _callbacks;
-  std::vector<async_callback>& _async_callbacks;
+  std::promise<std::string>& _p;
 };
 
-struct Test {
+typedef std::function<void(const callback&)> async_callback;
+typedef std::function<std::string()> parent_name_getter;
+
+struct Action {
+  const void_callback cb = nullptr;
+  const async_callback async_cb = nullptr;
+  const bool async = false;
+
+  void run() const {
+    if (async)
+      run_async();
+    else
+      run_sync();
+  }
+
+  void run_sync() const {
+    cb();
+  }
+
+  void run_async() const {
+    auto promise = std::promise<std::string>();
+    std::thread thr([&]() {
+      async_cb(callback(promise));
+    });
+    auto future = promise.get_future();
+    auto ret = future.get();
+    thr.join();
+    if (!ret.empty())
+      throw std::runtime_error(ret);
+  }
+
+  Action(const void_callback& cb_)
+    : cb(cb_) {}
+
+  Action(const async_callback& async_cb_)
+    : async_cb(async_cb_), async(true) {}
+};
+
+struct ActionAccumulator {
+  ActionAccumulator(std::vector<Action>& actions)
+    : _actions(actions) {}
+
+  template <typename Cb>
+  void operator()(const Cb& cb) {
+    _actions.emplace_back(cb);
+  }
+
+  std::vector<Action>& _actions;
+};
+
+struct Test : public Action {
   const std::string name;
-  const callback cb;
   mutable std::string message;
   mutable bool failed = false;
   mutable double seconds = 0;
@@ -51,7 +100,7 @@ struct Test {
     timer t;
     t.start();
     try {
-      cb();
+      Action::run();
     }
     catch(std::exception& e) {
       failed = true;
@@ -62,8 +111,23 @@ struct Test {
     microseconds = t.count();
   }
 
-  Test(const std::string& name_, const callback& cb_)
-    : name(name_), cb(cb_) {}
+  Test(const std::string& name_, const void_callback& cb_)
+    : Action(cb_), name(name_) {}
+
+  Test(const std::string& name_, const async_callback& async_cb_)
+    : Action(async_cb_), name(name_) {}
+};
+
+struct TestAccumulator {
+  TestAccumulator(std::vector<Test>& tests)
+    : _tests(tests) {}
+
+  template <typename Cb>
+  void operator()(const std::string& name, const Cb& cb) {
+    _tests.emplace_back(name, cb);
+  }
+
+  std::vector<Test>& _tests;
 };
 
 struct Suite;
@@ -77,17 +141,13 @@ struct Reporter {
   virtual void suiteSucceeded(const Suite& s) {}
 };
 
-typedef std::function<void(parent_name_getter, CallbackAccumulator&, CallbackAccumulator&, CallbackAccumulator&, CallbackAccumulator&, tagged_registration)> suite_initializer;
+typedef std::function<void(parent_name_getter, ActionAccumulator&, ActionAccumulator&, ActionAccumulator&, ActionAccumulator&, TestAccumulator&)> suite_initializer;
 
 struct Suite : std::enable_shared_from_this<Suite> {
-  std::vector<callback> _before;
-  std::vector<async_callback> _beforeAsync;
-  std::vector<callback> _beforeEach;
-  std::vector<async_callback> _beforeEachAsync;
-  std::vector<callback> _after;
-  std::vector<async_callback> _afterAsync;
-  std::vector<callback> _afterEach;
-  std::vector<async_callback> _afterEachAsync;
+  std::vector<Action> _before;
+  std::vector<Action> _beforeEach;
+  std::vector<Action> _after;
+  std::vector<Action> _afterEach;
 
   std::vector<Test> tests;
   std::vector<std::shared_ptr<Suite>> suites;
@@ -96,7 +156,8 @@ struct Suite : std::enable_shared_from_this<Suite> {
   std::string name;
   std::string path;
   suite_initializer initializer = nullptr;
-  mutable bool failed = false;
+  mutable std::size_t failures = 0;
+  mutable std::size_t successes = 0;
 
   Suite() {}
 
@@ -115,14 +176,11 @@ struct Suite : std::enable_shared_from_this<Suite> {
   }
 
   void initialize(const suite_initializer& initializer_) {
-    CallbackAccumulator before(_before, _beforeAsync);
-    CallbackAccumulator beforeEach(_beforeEach, _beforeEachAsync);
-    CallbackAccumulator after(_after, _afterAsync);
-    CallbackAccumulator afterEach(_afterEach, _afterEachAsync);
-
-    auto it = [&](const char* tag, const callback& cb) {
-      tests.emplace_back(tag, cb);
-    };
+    ActionAccumulator before(_before);
+    ActionAccumulator beforeEach(_beforeEach);
+    ActionAccumulator after(_after);
+    ActionAccumulator afterEach(_afterEach);
+    TestAccumulator it(tests);
 
     auto parent_getter = [&]() {
       return path;
@@ -131,66 +189,52 @@ struct Suite : std::enable_shared_from_this<Suite> {
     initializer_(parent_getter, before, beforeEach, after, afterEach, it);
   }
 
-  void call(const std::vector<callback>& cbs) const {
-    for (const auto& cb : cbs)
-      cb();
-  }
-
-  void call(const std::vector<async_callback>& cbs) const {
-    for (const auto& cb : cbs) {
-      auto promise = std::promise<bool>();
-      std::thread t([&]() {
-        cb([&](bool value) {
-          promise.set_value(value);
-        });
-      });
-      auto future = promise.get_future();
-      future.get();
-      t.join();
-    }
-  }
-
   void execute() const {
     Reporter defaultReporter;
     execute(defaultReporter);
   }
 
+  template <typename Cont>
+  void call(const Cont& c) const {
+    for (const auto& e : c)
+      e.run();
+  }
+
   template <typename Reporter = Reporter>
   void execute(Reporter& reporter) const {
-    failed = false;
+    failures = 0;
+    successes = 0;
+
     reporter.suiteStarted(*this);
 
     call(_before);
-    call(_beforeAsync);
 
     for (const auto& test : tests) {
       call(_beforeEach);
-      call(_beforeEachAsync);
 
       reporter.testStarted(test);
       test.run();
       if (test.failed) {
         reporter.testFailed(test);
-        failed = true;
+        ++failures;
       }
       else {
         reporter.testSucceeded(test);
+        ++successes;
       }
 
       call(_afterEach);
-      call(_afterAsync);
     }
 
     call(_after);
-    call(_afterAsync);
 
     for (const auto& s : suites) {
       s->execute(reporter);
-      if (s->failed)
-        failed = true;
+      successes += s->successes;
+      failures += s->failures;
     }
 
-    if (failed)
+    if (failures > 0)
       reporter.suiteFailed(*this);
     else
       reporter.suiteSucceeded(*this);
@@ -244,7 +288,7 @@ inline std::string parent() {
 
 #define describe(tag) \
 auto tag = Registry::add(parent(), #tag, \
-  [] (parent_name_getter parent, CallbackAccumulator& before, CallbackAccumulator& beforeEach, CallbackAccumulator& after, CallbackAccumulator& afterEach, tagged_registration it) { \
+  [] (parent_name_getter parent, ActionAccumulator& before, ActionAccumulator& beforeEach, ActionAccumulator& after, ActionAccumulator& afterEach, TestAccumulator& it) { \
 
 #define done(tag) \
 }); \

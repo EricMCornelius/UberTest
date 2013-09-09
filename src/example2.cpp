@@ -17,10 +17,10 @@ describe(example1)
   before([]() {
 
   });
-  before([](const bool_callback& cb) {
+  before([](const callback& cb) {
     // demonstrate a pause in asynchronous before call
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    cb(true);
+    cb();
   });
   beforeEach([=]() {
     static std::size_t count = 0;
