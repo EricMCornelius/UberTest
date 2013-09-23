@@ -1,2 +1,0 @@
-env.compiler = 'g++-4.8';
-env.compiler_flags = ['-O2', '-std=c++11'];
