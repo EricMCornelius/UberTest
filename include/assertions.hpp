@@ -190,19 +190,19 @@ catch(...) { \
 } \
 
 #define ut_assert_eq(v1, v2, ...) \
-ut::assert_eq(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__); \
+ut::assert_eq(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__);
 
 #define ut_assert_neq(v1, v2, ...) \
-ut::assert_neq(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__); \
+ut::assert_neq(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__);
 
 #define ut_assert_lt(v1, v2, ...) \
-ut::assert_lt(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__); \
+ut::assert_lt(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__);
 
 #define ut_assert_lte(v1, v2, ...) \
-ut::assert_lte(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__); \
+ut::assert_lte(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__);
 
 #define ut_assert_gt(v1, v2, ...) \
-ut::assert_gt(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__); \
+ut::assert_gt(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__);
 
 #define ut_assert_gte(v1, v2, ...) \
-ut::assert_gte(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__); \
+ut::assert_gte(v1, v2, LocationInfo{__FILE__, __LINE__, __func__}, ##__VA_ARGS__);

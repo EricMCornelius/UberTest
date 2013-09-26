@@ -291,4 +291,4 @@ auto tag = Registry::add(parent(), #tag, \
   [] (parent_name_getter parent, ActionAccumulator& before, ActionAccumulator& beforeEach, ActionAccumulator& after, ActionAccumulator& afterEach, TestAccumulator& it) { \
 
 #define done(tag) \
-}); \
+});
