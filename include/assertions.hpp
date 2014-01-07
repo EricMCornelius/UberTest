@@ -79,15 +79,15 @@ struct Formatter {
   }
 
   template <typename Head, typename... Args>
-  void concat_impl(std::ostream& out, const Head& h, const Args&... args) {
+  void concat_impl(std::ostream& out, Head&& h, Args&&... args) {
     out << h << sep;
-    concat_impl(out, args...);
+    concat_impl(out, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  std::string concat(const Args&... args) {
+  std::string concat(Args&&... args) {
     std::stringstream str;
-    concat_impl(str, args...);
+    concat_impl(str, std::forward<Args>(args)...);
     return std::move(str.str());
   }
 
@@ -119,59 +119,59 @@ inline std::ostream& operator << (std::ostream& out, const LocationInfo& loc) {
 }
 
 template <typename... Args>
-void assert(bool value, const Args&... args) {
+void assert(bool value, Args&&... args) {
   if (value)
     return;
 
-  throw std::runtime_error(ut::Formatter().concat(args...));
+  throw std::runtime_error(ut::Formatter().concat(std::forward<Args>(args)...));
 }
 
 template <typename T1, typename T2, typename... Args>
-void assert_eq(const T1& t1, const T2& t2, const Args&... args) {
+void assert_eq(T1&& t1, T2&& t2, Args&&... args) {
   if (t1 == t2)
     return;
 
-  throw std::runtime_error(ut::Formatter().concat(t1, "!=", t2, args...));
+  throw std::runtime_error(ut::Formatter().concat(t1, "!=", t2, std::forward<Args>(args)...));
 }
 
 template <typename T1, typename T2, typename... Args>
-void assert_neq(const T1& t1, const T2& t2, const Args&... args) {
+void assert_neq(T1&& t1, T2&& t2, Args&&... args) {
   if (t1 != t2)
     return;
 
-  throw std::runtime_error(ut::Formatter().concat(t1, "==", t2, args...));
+  throw std::runtime_error(ut::Formatter().concat(t1, "==", t2, std::forward<Args>(args)...));
 }
 
 template <typename T1, typename T2, typename... Args>
-void assert_lt(const T1& t1, const T2& t2, const Args&... args) {
+void assert_lt(T1&& t1, T2&& t2, Args&&... args) {
   if (t1 < t2)
     return;
 
-  throw std::runtime_error(ut::Formatter().concat(t1, "!<", t2, args...));
+  throw std::runtime_error(ut::Formatter().concat(t1, "!<", t2, std::forward<Args>(args)...));
 }
 
 template <typename T1, typename T2, typename... Args>
-void assert_lte(const T1& t1, const T2& t2, const Args&... args) {
+void assert_lte(T1&& t1, T2&& t2, Args&&... args) {
   if (t1 <= t2)
     return;
 
-  throw std::runtime_error(ut::Formatter().concat(t1, "!<=", t2, args...));
+  throw std::runtime_error(ut::Formatter().concat(t1, "!<=", t2, std::forward<Args>(args)...));
 }
 
 template <typename T1, typename T2, typename... Args>
-void assert_gt(const T1& t1, const T2& t2, const Args&... args) {
+void assert_gt(T1&& t1, T2&& t2, Args&&... args) {
   if (t1 > t2)
     return;
 
-  throw std::runtime_error(ut::Formatter().concat(t1, "!>", t2, args...));
+  throw std::runtime_error(ut::Formatter().concat(t1, "!>", t2, std::forward<Args>(args)...));
 }
 
 template <typename T1, typename T2, typename... Args>
-void assert_gte(const T1& t1, const T2& t2, const Args&... args) {
+void assert_gte(T1&& t1, T2&& t2, Args&&... args) {
   if (t1 >= t2)
     return;
 
-  throw std::runtime_error(ut::Formatter().concat(t1, "!>=", t2, args...));
+  throw std::runtime_error(ut::Formatter().concat(t1, "!>=", t2, std::forward<Args>(args)...));
 }
 
 }
