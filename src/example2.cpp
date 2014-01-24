@@ -1,6 +1,4 @@
 #include <uber_test.hpp>
-#include <ostream_reporter.hpp>
-#include <assertions.hpp>
 
 #include <iostream>
 #include <sstream>
