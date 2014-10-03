@@ -10,9 +10,12 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <ut/reporter.hpp>
+#include <ut/test.hpp>
+
 namespace ut {
 
-struct OstreamReporter {
+struct OstreamReporter : Reporter {
   OstreamReporter(std::ostream& out_)
     : out(out_)
   {
