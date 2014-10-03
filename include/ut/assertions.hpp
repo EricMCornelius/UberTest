@@ -49,7 +49,7 @@ inline std::vector<std::string> raw_trace() {
   auto sym = backtrace_symbols(funcs, num_funcs);
   std::vector<std::string> results;
 
-  for (auto idx = 0; idx < num_funcs; ++idx)
+  for (auto idx = 0u; idx < num_funcs; ++idx)
     results.emplace_back(sym[idx]);
 
   return std::move(results);
