@@ -1,5 +1,5 @@
 register({
-  id: 'uber_test',
+  id: 'UberTest',
   type: 'header_only',
   language: 'c++'
 });
@@ -11,5 +11,5 @@ register({
   language: 'c++',
   libs: ['pthread'],
   sources: ['src/example.cpp', 'src/example2.cpp'],
-  deps: ['uber_test']
+  deps: ['UberTest']
 });
