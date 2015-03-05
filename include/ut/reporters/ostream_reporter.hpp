@@ -246,7 +246,7 @@ struct OstreamReporter : Reporter {
     if (s.successes)
       print(Color::Yellow, pad(), "successes:", Color::Green, s.successes);
     if (s.stubs)
-      print(Color::Yellow, pad(), "stubs:", Color::Yellow, s.stubs);
+      print(Color::Yellow, pad(), "stubs:", Color::Blue, s.stubs);
     decreaseIndentation();
     if (s.name != "root")
       print('\n');
@@ -258,7 +258,7 @@ struct OstreamReporter : Reporter {
     increaseIndentation();
     print(Color::Yellow, pad(), "successes:", Color::Green, s.successes);
     if (s.stubs)
-      print(Color::Yellow, pad(), "stubs:", Color::Yellow, s.stubs);
+      print(Color::Yellow, pad(), "stubs:", Color::Blue, s.stubs);
     decreaseIndentation();
     if (s.name != "root")
       print('\n');

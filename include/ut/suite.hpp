@@ -88,6 +88,7 @@ struct Suite : std::enable_shared_from_this<Suite> {
     for (const auto& test : tests) {
       if (test.is_stub) {
         reporter.testStubbed(test);
+        ++stubs;
         continue;
       }
 
