@@ -33,6 +33,7 @@ struct Suite : std::enable_shared_from_this<Suite> {
   mutable std::size_t failures = 0;
   mutable std::size_t successes = 0;
   mutable std::size_t stubs = 0;
+  mutable std::size_t microseconds = 0;
 
   Suite() {}
 
@@ -80,6 +81,7 @@ struct Suite : std::enable_shared_from_this<Suite> {
     failures = 0;
     successes = 0;
     stubs = 0;
+    microseconds = 0;
 
     reporter.suiteStarted(*this);
 
@@ -104,6 +106,7 @@ struct Suite : std::enable_shared_from_this<Suite> {
         reporter.testSucceeded(test);
         ++successes;
       }
+      microseconds += test.microseconds;
 
       call(_afterEach);
     }
@@ -115,6 +118,7 @@ struct Suite : std::enable_shared_from_this<Suite> {
       successes += s->successes;
       failures += s->failures;
       stubs += s->stubs;
+      microseconds += s->microseconds;
     }
 
     if (failures > 0)
