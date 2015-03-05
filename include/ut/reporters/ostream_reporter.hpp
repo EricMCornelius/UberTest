@@ -25,6 +25,7 @@ struct OstreamReporter : Reporter {
   std::ostream& out;
   std::size_t indentation = 0;
   std::size_t indentation_size = 2;
+  bool print_stack = false;
 
   std::unordered_map<std::string, std::size_t> color_map = {
     {"black", 0},
@@ -44,8 +45,14 @@ struct OstreamReporter : Reporter {
     {"background bright", 100}
   };
 
-  std::string pad() {
-    return "\n" + std::string(indentation, ' ');
+  struct padding {
+    std::size_t size;
+
+    padding(std::size_t size_) : size(size_) {}
+  };
+
+  padding pad() {
+    return indentation;
   }
 
   void increaseIndentation() {
@@ -65,6 +72,7 @@ struct OstreamReporter : Reporter {
   }
 
   enum class Color : std::uint8_t {
+    None,
     Black,
     Red,
     Green,
@@ -81,7 +89,7 @@ struct OstreamReporter : Reporter {
   }
 
   void print_impl() {
-    std::cout << std::endl;
+
   }
 
   template <typename Head, typename... Args>
@@ -91,10 +99,18 @@ struct OstreamReporter : Reporter {
   }
 
   template <typename... Args>
+  void print_impl(const padding& padding, const Args&... args) {
+    out << '\n' + std::string(padding.size, ' ');
+    print_impl(args...);
+  }
+
+  template <typename... Args>
   void print_impl(const Color& color, const Args&... args) {
     if (isTerminal()) {
       endColor();
       switch(color) {
+        case Color::None:
+          break;
         case Color::Black:
           startColor("black");
           break;
@@ -155,10 +171,15 @@ struct OstreamReporter : Reporter {
 
   std::vector<std::shared_ptr<redirect>> redirections;
 
+  virtual void testStubbed(const Test& t) {
+    print(pad(), Color::Yellow, "Test stubbed:", Color::Cyan, t.name, '\n');
+  }
+
   virtual void testStarted(const Test& t) {
     print(pad(), Color::Yellow, "Test started:", Color::Cyan, t.name);
     redirections.emplace_back(std::make_shared<redirect>(std::cerr));
     redirections.emplace_back(std::make_shared<redirect>(std::cout));
+    increaseIndentation();
   }
 
   virtual void testFailed(const Test& t) {
@@ -167,11 +188,26 @@ struct OstreamReporter : Reporter {
     auto stderr = redirections.back()->contents();
     redirections.pop_back();
     bool us = (t.seconds < 0.001);
-    print(pad(), Color::Red, "Failure:",
-          Color::Yellow, pad(), "execution time:", Color::White, (us) ? t.microseconds : t.seconds, (us) ? "(us)" : "(s)",
-          Color::Yellow, pad(), "stdout:", Color::White, stdout,
-          Color::Yellow, pad(), "stderr:", Color::White, stderr,
-          Color::Yellow, pad(), "failure:", Color::White, t.message);
+    print(pad(), Color::Red, "Failure:");
+    increaseIndentation();
+    print(Color::Yellow, pad(), "execution time:", Color::White, (us) ? t.microseconds : t.seconds, (us) ? "(us)" : "(s)");
+    if (!stdout.empty())
+      print(Color::Yellow, pad(), "stdout:", Color::White, stdout);
+    if (!stderr.empty())
+      print(Color::Yellow, pad(), "stderr:", Color::White, stderr);
+    if (t.exception) {
+      print(Color::Yellow, pad(), "failure:", Color::Red, t.exception->what());
+      if (!t.exception->location.empty())
+        print(Color::Yellow, pad(), "location:", Color::Red, t.exception->location);
+      if (print_stack)
+        print(Color::Yellow, pad(), "stack:\n", Color::None, t.exception->stack);
+    }
+    else {
+      print(Color::Yellow, pad(), "failure:", Color::White, t.message);
+    }
+    decreaseIndentation();
+    decreaseIndentation();
+    print('\n');
   }
 
   virtual void testSucceeded(const Test& t) {
@@ -180,28 +216,52 @@ struct OstreamReporter : Reporter {
     auto stderr = redirections.back()->contents();
     redirections.pop_back();
     bool us = (t.seconds < 0.001);
-    print(pad(), Color::Green, "Success:",
-          Color::Yellow, pad(), "execution time:", Color::White, (us) ? t.microseconds : t.seconds, (us) ? "(us)" : "(s)",
-          Color::Yellow, pad(), "stdout:", Color::White, stdout,
-          Color::Yellow, pad(), "stderr:", Color::White, stderr);
+    print(pad(), Color::Green, "Success:");
+    increaseIndentation();
+    print(Color::Yellow, pad(), "execution time:", Color::White, (us) ? t.microseconds : t.seconds, (us) ? "(us)" : "(s)");
+    if (!stdout.empty())
+      print(Color::Yellow, pad(), "stdout:", Color::White, stdout);
+    if (!stderr.empty())
+      print(Color::Yellow, pad(), "stderr:", Color::White, stderr);
+    decreaseIndentation();
+    decreaseIndentation();
+    print('\n');
   }
 
   virtual void suiteStarted(const Suite& s) {
-    print(pad(), Color::Yellow, "Suite Started:", Color::Cyan, s.name);
+    if(s.name == "root") {
+      print(Color::Yellow, "Suite Started:", Color::Cyan, s.name, '\n');
+    }
+    else {
+      print(pad(), Color::Yellow, "Suite Started:", Color::Cyan, s.name, '\n');
+    }
     increaseIndentation();
   }
 
   virtual void suiteFailed(const Suite& s) {
     decreaseIndentation();
-    print(pad(), Color::Red, "Suite Failed:", Color::Cyan, s.name,
-          Color::Yellow, pad(), "failures:", Color::Red, s.failures,
-          Color::Yellow, pad(), "successes:", Color::Green, s.successes);
+    print(pad(), Color::Red, "Suite Failed:", Color::Cyan, s.name);
+    increaseIndentation();
+    print(Color::Yellow, pad(), "failures:", Color::Red, s.failures);
+    if (s.successes)
+      print(Color::Yellow, pad(), "successes:", Color::Green, s.successes);
+    if (s.stubs)
+      print(Color::Yellow, pad(), "stubs:", Color::Yellow, s.stubs);
+    decreaseIndentation();
+    if (s.name != "root")
+      print('\n');
   }
 
   virtual void suiteSucceeded(const Suite& s) {
     decreaseIndentation();
-    print(pad(), Color::Green, "Suite Succeeded:", Color::Cyan, s.name,
-          Color::Yellow, pad(), "successes:", Color::Green, s.successes);
+    print(pad(), Color::Green, "Suite Succeeded:", Color::Cyan, s.name);
+    increaseIndentation();
+    print(Color::Yellow, pad(), "successes:", Color::Green, s.successes);
+    if (s.stubs)
+      print(Color::Yellow, pad(), "stubs:", Color::Yellow, s.stubs);
+    decreaseIndentation();
+    if (s.name != "root")
+      print('\n');
   }
 };
 

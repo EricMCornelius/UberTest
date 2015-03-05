@@ -1,7 +1,8 @@
 register({
   id: 'UberTest',
   type: 'header_only',
-  language: 'c++'
+  language: 'c++',
+  deps: ['backward-cpp']
 });
 
 register({
@@ -11,5 +12,6 @@ register({
   language: 'c++',
   libs: ['pthread'],
   sources: ['src/example.cpp', 'src/example2.cpp'],
+  defines: ['BACKWARD_HAS_DW=1'],
   deps: ['UberTest']
 });
