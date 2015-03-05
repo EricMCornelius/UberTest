@@ -36,7 +36,7 @@ struct TraceInfo {
 };
 
 inline std::ostream& operator << (std::ostream& out, const TraceInfo& info) {
-  auto pad = 120 - info.symbol.size();
+  int64_t pad = 120 - info.symbol.size();
   if (pad < 0)
     pad = 0;
   return out << info.symbol << std::string(pad, ' ') << "[" << std::setw(14) << info.address << "] " << info.binary;
@@ -49,8 +49,9 @@ inline std::vector<std::string> raw_trace() {
   auto sym = backtrace_symbols(funcs, num_funcs);
   std::vector<std::string> results;
 
-  for (auto idx = 0u; idx < num_funcs; ++idx)
+  for (auto idx = 0u; idx < num_funcs; ++idx) {
     results.emplace_back(sym[idx]);
+  }
 
   return std::move(results);
 }
@@ -99,7 +100,7 @@ struct Formatter {
     return str.str();
   }
 
-  const std::string& sep = " ";
+  const std::string sep = " ";
 };
 
 inline std::string stack() {
