@@ -10,7 +10,7 @@ using namespace ut;
 
 namespace {
 
-describe(example2)
+suite(example2)
   auto val = std::make_shared<std::string>();
 
   before([]() {

@@ -10,7 +10,7 @@ using namespace ut;
 
 namespace {
 
-describe(example1)
+suite(example1)
   auto val = std::make_shared<std::string>();
 
   // synchronous before call
