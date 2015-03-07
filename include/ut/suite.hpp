@@ -32,6 +32,8 @@ struct Suite : std::enable_shared_from_this<Suite> {
   suite_initializer initializer = nullptr;
   mutable std::size_t failures = 0;
   mutable std::size_t successes = 0;
+  mutable std::size_t stubs = 0;
+  mutable std::size_t microseconds = 0;
 
   Suite() {}
 
@@ -63,9 +65,9 @@ struct Suite : std::enable_shared_from_this<Suite> {
     initializer_(parent_getter, before, beforeEach, after, afterEach, it);
   }
 
-  void execute() const {
+  void execute(const std::string& filter = "") const {
     Reporter defaultReporter;
-    execute(defaultReporter);
+    execute(defaultReporter, filter);
   }
 
   template <typename Cont>
@@ -75,15 +77,23 @@ struct Suite : std::enable_shared_from_this<Suite> {
   }
 
   template <typename Reporter = Reporter>
-  void execute(Reporter& reporter) const {
+  void execute(Reporter& reporter = Reporter(), const std::string& filter = "") const {
     failures = 0;
     successes = 0;
+    stubs = 0;
+    microseconds = 0;
 
     reporter.suiteStarted(*this);
 
     call(_before);
 
     for (const auto& test : tests) {
+      if (test.is_stub) {
+        reporter.testStubbed(test);
+        ++stubs;
+        continue;
+      }
+
       call(_beforeEach);
 
       reporter.testStarted(test);
@@ -96,6 +106,7 @@ struct Suite : std::enable_shared_from_this<Suite> {
         reporter.testSucceeded(test);
         ++successes;
       }
+      microseconds += test.microseconds;
 
       call(_afterEach);
     }
@@ -103,9 +114,11 @@ struct Suite : std::enable_shared_from_this<Suite> {
     call(_after);
 
     for (const auto& s : suites) {
-      s->execute(reporter);
+      s->execute(reporter, filter);
       successes += s->successes;
       failures += s->failures;
+      stubs += s->stubs;
+      microseconds += s->microseconds;
     }
 
     if (failures > 0)

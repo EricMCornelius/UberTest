@@ -10,16 +10,21 @@ using namespace ut;
 
 namespace {
 
-describe(example1)
+suite(example1)
   auto val = std::make_shared<std::string>();
+
+  // synchronous before call
   before([]() {
 
   });
+
+  // asynchronous before call
   before([](const callback& cb) {
-    // demonstrate a pause in asynchronous before call
     std::this_thread::sleep_for(std::chrono::seconds(1));
     cb();
   });
+
+  // synchronous before each call
   beforeEach([=]() {
     static std::size_t count = 0;
     ++count;
@@ -27,40 +32,43 @@ describe(example1)
     str << count;
     *val = str.str();
   });
+
+  // synchronous after each call
   afterEach([]() {
 
   });
+
+  // synchronous after call
   after([]() {
 
   });
+
   it("should check value", [=] {
     std::cout << *val;
     assert_eq(*val, "1");
   });
+
   it("should also check value", [=] {
     std::cout << *val;
     assert_eq(*val, "3");
   });
+
   it("should demonstrate asynchronous failure", [](const callback& cb) {
     cb("Sample failure");
   });
+
   it("should demonstrate another async failure", [](const callback& cb) {
     cb(1);
   });
 
   describe(subsuite)
-    it("should not execute?", [] {
-      std::cout << "damn";
-    });
+    it("should be stubbed");
 
     describe(subsuite2)
       it("should play out", [] {
         std::cout << "hi there";
       });
-      it("should throw an uncaught exception", [] {
-        std::cerr << "This isn't good";
-        assert(1 == 2, "1 does not equal 2");
-      });
+
       it("should wait for 1/10 of a second", [] {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         assert(true, "Should not fail");

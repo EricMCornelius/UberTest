@@ -1,0 +1,16 @@
+register({
+  id: 'backward-cpp',
+  type: 'static_lib',
+  language: 'c++',
+  sources: ['*.cpp'],
+  base: 'backward-cpp',
+  deps: ['backward-deps']
+});
+
+register({
+  id: 'backward-deps',
+  type: 'external',
+  language: 'c++',
+  includedirs: ['backward-cpp'],
+  libs: ['dw']
+});

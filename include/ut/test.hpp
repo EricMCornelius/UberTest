@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include <ut/timer.hpp>
+#include <ut/assertions.hpp>
 
 #include <sstream>
 
@@ -47,6 +48,11 @@ struct Action {
   const bool async = false;
 
   void run() const {
+    if (!cb && !async_cb) {
+      // stubbed
+      return;
+    }
+
     if (async)
       run_async();
     else
@@ -65,9 +71,10 @@ struct Action {
     auto future = promise.get_future();
     auto ret = future.get();
     thr.join();
-    if (!ret.empty())
-      throw std::runtime_error(ret);
+    ut_assert(ret.empty(), ret);
   }
+
+  Action() {}
 
   Action(const void_callback& cb_)
     : cb(cb_) {}
@@ -90,6 +97,8 @@ struct ActionAccumulator {
 
 struct Test : public Action {
   const std::string name;
+  bool is_stub = false;
+  mutable std::shared_ptr<ut::Exception> exception = nullptr;
   mutable std::string message;
   mutable bool failed = false;
   mutable double seconds = 0;
@@ -101,6 +110,10 @@ struct Test : public Action {
     try {
       Action::run();
     }
+    catch(ut::Exception& e) {
+      failed = true;
+      exception = std::make_shared<ut::Exception>(std::move(e));
+    }
     catch(std::exception& e) {
       failed = true;
       message = e.what();
@@ -109,6 +122,9 @@ struct Test : public Action {
     seconds = t.seconds();
     microseconds = t.count();
   }
+
+  Test(const std::string& name_)
+    : Action(), name(name_), is_stub(true) {}
 
   Test(const std::string& name_, const void_callback& cb_)
     : Action(cb_), name(name_) {}
@@ -120,6 +136,10 @@ struct Test : public Action {
 struct TestAccumulator {
   TestAccumulator(std::vector<Test>& tests)
     : _tests(tests) {}
+
+  void operator()(const std::string& name) {
+    _tests.emplace_back(name);
+  }
 
   template <typename Cb>
   void operator()(const std::string& name, const Cb& cb) {
